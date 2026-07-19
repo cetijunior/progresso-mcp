@@ -1,0 +1,176 @@
+{
+  "ranAt": "2026-07-19T19:55:58.889Z",
+  "today": "2026-07-19",
+  "summary": {
+    "outstandingEur": 150,
+    "paidEur": 0,
+    "ticketsScanned": 18,
+    "boardsScanned": 4,
+    "wip": 15,
+    "staleWip": 0,
+    "overdueDue": 1,
+    "collectable": 1,
+    "collectableSum": 150,
+    "openLeads": 1,
+    "actionsApplied": 1,
+    "actionsFlagged": 2,
+    "teamIn": 1,
+    "teamSize": 6
+  },
+  "statusDist": {
+    "Backlog": 2,
+    "Review": 3,
+    "Done": 1,
+    "Working": 8,
+    "Planning": 4
+  },
+  "wipByBoard": [
+    {
+      "board": "Main",
+      "count": 7
+    },
+    {
+      "board": "Mirela Nurce",
+      "count": 6
+    },
+    {
+      "board": "Justin Tattoos",
+      "count": 2
+    }
+  ],
+  "team": [
+    {
+      "id": "1cbe0b22-4d24-4593-b53d-9361aab03592",
+      "name": "Ceti Lame",
+      "status": "In",
+      "ticket": null,
+      "weekMin": 2537,
+      "todayMin": 398
+    },
+    {
+      "id": "a2b7fd0f-67f6-41d0-9d19-197d5ddd358e",
+      "name": "Ceti Lame",
+      "status": "Out",
+      "ticket": null,
+      "weekMin": 1088,
+      "todayMin": 0
+    },
+    {
+      "id": "d5a8a493-fc7a-425b-97bc-74c18a189c63",
+      "name": "Luars Qamo",
+      "status": "Out",
+      "ticket": null,
+      "weekMin": 798,
+      "todayMin": 0
+    },
+    {
+      "id": "7691784a-8898-41a6-a63c-ddb0b4cebdb5",
+      "name": "Rei Canka",
+      "status": "Out",
+      "ticket": null,
+      "weekMin": 71,
+      "todayMin": 0
+    },
+    {
+      "id": "b01f00dd-1492-49d6-b6fc-c870c0314625",
+      "name": "devin seckar",
+      "status": "Out",
+      "ticket": null,
+      "weekMin": 39,
+      "todayMin": 0
+    },
+    {
+      "id": "eac8a50b-484c-4e50-9eea-b4ecca4005ed",
+      "name": "Reshat Kamolli",
+      "status": "Out",
+      "ticket": null,
+      "weekMin": 19,
+      "todayMin": 0
+    }
+  ],
+  "grinders": [
+    {
+      "name": "Ceti Lame",
+      "weekH": 42.3,
+      "todayH": 6.6,
+      "status": "In"
+    },
+    {
+      "name": "Ceti Lame",
+      "weekH": 18.1,
+      "todayH": 0,
+      "status": "Out"
+    },
+    {
+      "name": "Luars Qamo",
+      "weekH": 13.3,
+      "todayH": 0,
+      "status": "Out"
+    },
+    {
+      "name": "Rei Canka",
+      "weekH": 1.2,
+      "todayH": 0,
+      "status": "Out"
+    },
+    {
+      "name": "devin seckar",
+      "weekH": 0.7,
+      "todayH": 0,
+      "status": "Out"
+    }
+  ],
+  "leads": [
+    {
+      "name": "Fadil Berisha",
+      "status": "qualified",
+      "temp": "warm",
+      "value": 0,
+      "follow": null,
+      "company": null
+    }
+  ],
+  "actions": [
+    {
+      "kind": "lead_hygiene",
+      "target": "Fadil Berisha",
+      "detail": "set follow-up today",
+      "applied": true,
+      "before": {
+        "status": "qualified",
+        "temp": "warm",
+        "follow": null,
+        "value": 0
+      }
+    },
+    {
+      "kind": "overdue_due",
+      "target": "Meta & Googl ads for: Sleep by Nora",
+      "detail": "Sleep by Nora · due 2026-07-13 · Backlog",
+      "applied": false,
+      "board": "Sleep by Nora"
+    },
+    {
+      "kind": "collect",
+      "target": "Building Website for Justin",
+      "detail": "150 EUR outstanding · Justin Tattoos",
+      "applied": false,
+      "amount": 150,
+      "currency": "EUR"
+    }
+  ],
+  "projects": [
+    "Justin Tattoos",
+    "Mirela Nurce",
+    "Sleep by Nora"
+  ],
+  "topStale": [],
+  "topCollect": [
+    {
+      "title": "Building Website for Justin",
+      "board": "Justin Tattoos",
+      "amount": 150,
+      "currency": "EUR"
+    }
+  ]
+}

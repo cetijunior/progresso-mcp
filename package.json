@@ -1,0 +1,44 @@
+{
+  "name": "progresso-mcp",
+  "version": "0.2.0",
+  "description": "MCP server for Progresso — agency tickets, time, leads under your Supabase login",
+  "type": "module",
+  "bin": {
+    "progresso-mcp": "bin/progresso-mcp.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md",
+    ".env.example"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "inspector": "npx @modelcontextprotocol/inspector node dist/index.js",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "progresso",
+    "supabase",
+    "cursor"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@supabase/supabase-js": "^2.110.2",
+    "dotenv": "^16.5.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.19.0",
+    "typescript": "^5"
+  }
+}
