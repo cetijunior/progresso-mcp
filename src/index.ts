@@ -142,18 +142,28 @@ server.tool(
     let clientId: string | null = null;
     let col = status ?? "Backlog";
 
+    let orgId: string;
+
     if (parent_id) {
       const { data: parent, error: pErr } = await sb
         .from("tickets")
-        .select("id,board_id,project_id,client_id,status")
+        .select("id,board_id,project_id,client_id,status,org_id")
         .eq("id", parent_id)
         .single();
       if (pErr) throw pErr;
       bid = parent.board_id;
       projectId = parent.project_id;
       clientId = parent.client_id;
+      orgId = parent.org_id;
       col = status ?? "Backlog";
     } else {
+      const { data: board, error: bErr } = await sb
+        .from("boards")
+        .select("org_id")
+        .eq("id", bid)
+        .single();
+      if (bErr) throw bErr;
+      orgId = board.org_id;
       const { data: proj } = await sb
         .from("projects")
         .select("id,client_id")
@@ -166,6 +176,7 @@ server.tool(
     const { data, error } = await sb
       .from("tickets")
       .insert({
+        org_id: orgId,
         title: title.trim(),
         board_id: bid,
         status: col,
@@ -252,9 +263,15 @@ server.tool(
   async ({ ticket_id, body }) => {
     const sb = makeClient();
     const user = await requireUser(sb);
+    const { data: ticket, error: tErr } = await sb
+      .from("tickets")
+      .select("org_id")
+      .eq("id", ticket_id)
+      .single();
+    if (tErr) throw tErr;
     const { data, error } = await sb
       .from("ticket_comments")
-      .insert({ ticket_id, user_id: user.id, body: body.trim() })
+      .insert({ org_id: ticket.org_id, ticket_id, user_id: user.id, body: body.trim() })
       .select("*")
       .single();
     if (error) throw error;
@@ -300,9 +317,23 @@ server.tool(
   async (args) => {
     const sb = makeClient();
     const user = await requireUser(sb);
+    const { data: memberships, error: mErr } = await sb
+      .from("org_members")
+      .select("org_id,role")
+      .eq("user_id", user.id);
+    if (mErr) throw mErr;
+    if (!memberships || memberships.length === 0) {
+      throw new Error(`User ${user.id} belongs to no org — cannot resolve org_id for lead.`);
+    }
+    const rolePriority = { owner: 0, admin: 1, member: 2, client: 3 } as const;
+    const orgId = [...memberships].sort(
+      (a, b) => (rolePriority[a.role as keyof typeof rolePriority] ?? 9) -
+        (rolePriority[b.role as keyof typeof rolePriority] ?? 9),
+    )[0].org_id;
     const { data, error } = await sb
       .from("leads")
       .insert({
+        org_id: orgId,
         name: args.name.trim(),
         company: args.company?.trim() || null,
         status: args.status ?? "new",
