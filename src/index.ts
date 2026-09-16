@@ -38,6 +38,33 @@ function tiraneToday() {
   }).format(new Date());
 }
 
+const ROLE_PRIORITY = { owner: 0, admin: 1, member: 2, client: 3 } as const;
+
+/**
+ * The active org is a httpOnly cookie in the web app; over MCP there is no
+ * cookie, so resolve it from membership and prefer the strongest role.
+ * Every org-scoped insert must pass this explicitly — org_id is NOT NULL
+ * with no database default.
+ */
+async function resolveOrgId(
+  sb: ReturnType<typeof makeClient>,
+  userId: string,
+): Promise<string> {
+  const { data, error } = await sb
+    .from("org_members")
+    .select("org_id,role")
+    .eq("user_id", userId);
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error(`User ${userId} belongs to no org — cannot resolve org_id.`);
+  }
+  return [...data].sort(
+    (a, b) =>
+      (ROLE_PRIORITY[a.role as keyof typeof ROLE_PRIORITY] ?? 9) -
+      (ROLE_PRIORITY[b.role as keyof typeof ROLE_PRIORITY] ?? 9),
+  )[0].org_id;
+}
+
 server.tool(
   "dashboard_pulse",
   "Agency pulse: financials summary, who's checked in, in-progress ticket count.",
@@ -317,19 +344,7 @@ server.tool(
   async (args) => {
     const sb = makeClient();
     const user = await requireUser(sb);
-    const { data: memberships, error: mErr } = await sb
-      .from("org_members")
-      .select("org_id,role")
-      .eq("user_id", user.id);
-    if (mErr) throw mErr;
-    if (!memberships || memberships.length === 0) {
-      throw new Error(`User ${user.id} belongs to no org — cannot resolve org_id for lead.`);
-    }
-    const rolePriority = { owner: 0, admin: 1, member: 2, client: 3 } as const;
-    const orgId = [...memberships].sort(
-      (a, b) => (rolePriority[a.role as keyof typeof rolePriority] ?? 9) -
-        (rolePriority[b.role as keyof typeof rolePriority] ?? 9),
-    )[0].org_id;
+    const orgId = await resolveOrgId(sb, user.id);
     const { data, error } = await sb
       .from("leads")
       .insert({
@@ -410,6 +425,7 @@ server.tool(
     const { data, error } = await sb
       .from("time_entries")
       .insert({
+        org_id: await resolveOrgId(sb, user.id),
         user_id: user.id,
         ticket_id,
         started_at: new Date().toISOString(),
@@ -517,6 +533,96 @@ server.tool(
       .single();
     if (error) throw error;
     return text({ updated: data });
+  },
+);
+
+server.tool(
+  "list_time_entries",
+  "List your logged time entries, newest first. Use since/until (YYYY-MM-DD) to bound the window — this is how you find where the last entry stopped before backfilling.",
+  {
+    since: z.string().optional().describe("YYYY-MM-DD, inclusive"),
+    until: z.string().optional().describe("YYYY-MM-DD, inclusive"),
+    ticket_id: z.string().uuid().optional(),
+    limit: z.number().int().min(1).max(500).optional(),
+  },
+  async ({ since, until, ticket_id, limit }) => {
+    const sb = makeClient();
+    const user = await requireUser(sb);
+    let q = sb
+      .from("time_entries")
+      .select("id,ticket_id,started_at,ended_at,duration_minutes,note")
+      .eq("user_id", user.id)
+      .order("started_at", { ascending: false })
+      .limit(limit ?? 100);
+    if (since) q = q.gte("started_at", `${since}T00:00:00Z`);
+    if (until) q = q.lte("started_at", `${until}T23:59:59Z`);
+    if (ticket_id) q = q.eq("ticket_id", ticket_id);
+    const { data, error } = await q;
+    if (error) throw error;
+    const rows = data ?? [];
+    const minutes = rows.reduce((a, r) => a + (r.duration_minutes ?? 0), 0);
+    return text({
+      entries: rows,
+      count: rows.length,
+      total_hours: Math.round((minutes / 60) * 10) / 10,
+      latest_started_at: rows[0]?.started_at ?? null,
+    });
+  },
+);
+
+server.tool(
+  "log_time",
+  "Log a completed, backdated time entry. started_at/ended_at are ISO 8601 timestamps; duration_minutes is filled by the database trigger. Refuses an entry that overlaps one you already logged, so re-running a backfill cannot double-count.",
+  {
+    started_at: z.string().describe("ISO 8601, e.g. 2026-09-16T22:08:00+02:00"),
+    ended_at: z.string().describe("ISO 8601, must be after started_at"),
+    note: z.string().min(1).describe("What the time went on"),
+    ticket_id: z.string().uuid().optional().describe("Ticket to bill against"),
+    allow_overlap: z.boolean().optional().describe("Skip the overlap guard"),
+  },
+  async ({ started_at, ended_at, note, ticket_id, allow_overlap }) => {
+    const sb = makeClient();
+    const user = await requireUser(sb);
+    const start = new Date(started_at);
+    const end = new Date(ended_at);
+    if (Number.isNaN(start.valueOf()) || Number.isNaN(end.valueOf())) {
+      throw new Error("started_at and ended_at must be parseable ISO 8601 timestamps.");
+    }
+    if (end <= start) throw new Error("ended_at must be after started_at.");
+    if (start > new Date()) throw new Error("started_at is in the future.");
+
+    if (!allow_overlap) {
+      const { data: clash, error: cErr } = await sb
+        .from("time_entries")
+        .select("id,started_at,ended_at,note")
+        .eq("user_id", user.id)
+        .lt("started_at", end.toISOString())
+        .or(`ended_at.gt.${start.toISOString()},ended_at.is.null`)
+        .limit(1);
+      if (cErr) throw cErr;
+      if (clash && clash.length > 0) {
+        return text({
+          logged: false,
+          reason: "Overlaps an existing entry — pass allow_overlap to force.",
+          overlaps: clash[0],
+        });
+      }
+    }
+
+    const { data, error } = await sb
+      .from("time_entries")
+      .insert({
+        org_id: await resolveOrgId(sb, user.id),
+        user_id: user.id,
+        ticket_id: ticket_id ?? null,
+        started_at: start.toISOString(),
+        ended_at: end.toISOString(),
+        note: note.trim(),
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return text({ logged: data });
   },
 );
 
